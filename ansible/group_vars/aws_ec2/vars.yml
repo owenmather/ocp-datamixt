@@ -1,0 +1,5 @@
+ansible_connection: aws_ssm
+# When the S3 bucket isn't in the same region as the Instance
+# Explicitly setting the addressing style to 'virtual' may be necessary
+# https://repost.aws/knowledge-center/s3-http-307-response
+ansible_aws_ssm_s3_addressing_style: virtual

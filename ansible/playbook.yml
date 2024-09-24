@@ -1,0 +1,41 @@
+---
+- name: Base playbook for PoC
+  hosts: stopped_jump
+  gather_facts: false
+
+  tasks:
+    - shell: |
+        echo "{{inventory_hostname}} must be started"
+        aws ec2 start-instances --instance-ids {{inventory_hostname}} --region={{region}} --output json | jq
+      register: stopped_host
+      delegate_to: localhost
+
+    - debug:
+        var: stopped_host.stdout
+
+    - name: Wait for SSM Connection from Host
+      ansible.builtin.wait_for_connection:
+        delay: 60
+        timeout: 600
+# The following block connects to ALL discovered hosts in this AWS Account + Region
+# It will run the below tasks on every host discovered
+# It is up to the end user to put appropriate filters in place with the ec2 inventory plugin to build
+# Inventories / hosts lists as suits their requirements - tag based, running only, windows only etc
+- hosts: jump
+  gather_facts: false
+  vars:
+    ansible_aws_ssm_region: "{{region}}"
+    AWS_ACCESS_KEY_ID: "XXXXXXXXXXXXXXX" # Must be set to an appropriate account for OpenShift install
+    AWS_SECRET_ACCESS_KEY: "XXXXXXXXXXXXXX"
+    pullSecretFile: "~/.openshift/pull-secret" # Store your pull secret in this file
+    hostedZone: "XXXXXXXXXXXXXXX" # Route53 Hosted Zone ID"
+  become: true
+  become_user: ec2-user
+  tasks:
+    - name: Wait for SSM Connection from Host
+      ansible.builtin.wait_for_connection:
+        timeout: 60
+
+    - name: Run the openshift role
+      include_role:
+        name: openshift-ansible

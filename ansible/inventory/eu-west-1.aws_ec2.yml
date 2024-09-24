@@ -1,0 +1,14 @@
+---
+plugin: amazon.aws.aws_ec2
+regions:
+  - eu-west-1
+hostnames:
+  - instance-id
+
+
+groups:
+  stopped_jump: state.name == "stopped" #and ("type" in tags and tags.type == "jump")
+  jump: tags.type == "jump"
+
+compose:
+  region: placement.region

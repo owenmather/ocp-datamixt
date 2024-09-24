@@ -1,0 +1,144 @@
+---
+- name: Generate SSH Key
+  community.crypto.openssh_keypair:
+    path: "~/.ssh/ocp4-aws-key"
+    type: ed25519
+    force: no
+
+- name: Display the SSH Public Key
+  ansible.builtin.command:
+    cmd: "cat ~/.ssh/ocp4-aws-key.pub"
+  register: ssh_pub_key
+  changed_when: false
+
+- name: Show the SSH Public Key
+  ansible.builtin.debug:
+    msg: "{{ ssh_pub_key.stdout }}"
+
+- name: Read the pull secret
+  ansible.builtin.command:
+    cmd: "cat {{pullSecretFile}}"
+  register: pullSecret
+  changed_when: false
+  delegate_to: localhost
+
+- set_fact:
+    openshift_ssh_pub_key: "{{ ssh_pub_key.stdout }}"
+
+- name: Check current OpenShift Install Version
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/openshift-install version | head -n 1 | awk '{print $2}'"
+  register: ocp_install_version
+  ignore_errors: yes
+
+- name: Download OpenShift Binaries
+  when: ocp_install_version.rc != 0 or ocp_install_version.stdout != openshift_version
+  block:
+  - name: Download OpenShift CLI
+    ansible.builtin.get_url:
+      url: "{{openshift_download_url}}/{{openshift_version}}/openshift-client-linux-{{openshift_version}}.tar.gz"
+      dest: "/tmp/openshift-client-linux.tar.gz"
+
+  - name: Download OpenShift Installer
+    ansible.builtin.get_url:
+      url: "{{openshift_download_url}}/{{openshift_version}}/openshift-install-linux-{{openshift_version}}.tar.gz"
+      dest: "/tmp/openshift-install-linux.tar.gz"
+
+  - name: Extract OpenShift CLI
+    ansible.builtin.unarchive:
+      src: "/tmp/openshift-client-linux.tar.gz"
+      dest: "/tmp"
+      remote_src: yes
+
+  - name: Extract OpenShift Installer
+    ansible.builtin.unarchive:
+      src: "/tmp/openshift-install-linux.tar.gz"
+      dest: "/tmp"
+      remote_src: yes
+
+  - name: Move OpenShift CLI and kubectl to /usr/local/bin
+    ansible.builtin.command:
+      cmd: "mv /tmp/oc /tmp/kubectl /usr/local/bin"
+    become: yes
+    become_user: root
+
+  - name: Move OpenShift Installer to /usr/local/bin
+    ansible.builtin.command:
+      cmd: "mv /tmp/openshift-install /usr/local/bin"
+    become: yes
+    become_user: root
+
+  - name: Check OpenShift installer version
+    ansible.builtin.command:
+      cmd: "/usr/local/bin/openshift-install version"
+    register: ocp_version
+
+  - name: Show OpenShift installer version
+    ansible.builtin.debug:
+      msg: "{{ ocp_version.stdout }}"
+
+# Create directory in user home for openshift install
+- name: Create directory for OpenShift install
+  ansible.builtin.file:
+    path: "{{openshift_install_dir}}"
+    state: directory
+    mode: '0755'
+
+- name: Copy install-config for OpenShift single node cluster
+  ansible.builtin.template:
+    src: "{{ local_install_config_file }}"
+    dest: "{{ openshift_install_dir }}"
+    mode: '0600'
+
+- name: Create a backup of the install-config.yaml file with a timestamp
+  ansible.builtin.shell:
+    cmd: "cp {{ openshift_install_dir }}/install-config.yaml {{ openshift_install_dir }}/install-config.yaml.bak-$(date +%Y%m%d%H%M%S)"
+
+- name: Generate OpenShift Manifests
+  ansible.builtin.shell: "/usr/local/bin/openshift-install create manifests --dir=./"
+  args:
+    chdir: "{{ openshift_install_dir }}"
+  environment:
+    AWS_ACCESS_KEY_ID: {{ AWS_ACCESS_KEY_ID }}
+    AWS_SECRET_ACCESS_KEY: {{ AWS_SECRET_ACCESS_KEY }}
+  register: result
+
+- name: Run OpenShift Install
+  ansible.builtin.shell: "/usr/local/bin/openshift-install create cluster --dir=./"
+  args:
+    chdir: "{{ openshift_install_dir }}"
+  environment:
+    AWS_ACCESS_KEY_ID: {{ AWS_ACCESS_KEY_ID }}
+    AWS_SECRET_ACCESS_KEY: {{ AWS_SECRET_ACCESS_KEY }}
+
+- name: Generate Local Directory for OpenShift Auth Files
+  ansible.builtin.file:
+    path: "{{playbook_dir}}/auth"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  become: yes
+  become_user: owen
+
+- name: Fetch file from remote machine
+  ansible.builtin.fetch:
+    src: "{{ openshift_install_dir }}/auth/{{item}}"
+    dest: "{{playbook_dir}}/auth/{{item}}"
+    flat: yes
+  with_items:
+    - kubeconfig
+    - kubeadmin-password
+
+- name: Fetch SSH file from remote machine
+  ansible.builtin.fetch:
+    src: "~/.ssh/{{item}}"
+    dest: "{{playbook_dir}}/auth/{{item}}"
+    mode: '0600'
+    flat: yes
+  with_items:
+    - ocp4-aws-key.pub
+    - ocp4-aws-key
+
+- name: Show the result
+  ansible.builtin.debug:
+    msg: "{{ result.stdout }}"

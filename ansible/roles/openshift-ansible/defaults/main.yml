@@ -1,0 +1,7 @@
+---
+# defaults file for openshift-ansible
+openshift_version: 4.12.64
+local_install_config_file: "install-config.yaml"
+openshift_install_dir: "~/ocp-install"
+credentialsMode: "Passthrough"
+control-os: "-arm64"
