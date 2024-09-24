@@ -47,15 +47,15 @@ For a full list check the [terraform-plan](terraform-plan.md) file
 
 Order of operations:
 
-1: OpenShift Creates the Cluster AWS Resources with Terraform
-2: OpenShift Creates an AWS Load Balancer and Record for the OpenShift API. OpenShift Creates master nodes (tested on singe node openshift)
-3: OpenShift Creates the Bootstrap AWS Resources with Terraform
-4: OpenShift creates bootstrap EC2 instance and S3 Bucket to connect to and configure the cluster
-5: OpenShift adds the bootstrap.ign ignition file to the S3 Bucket
-6: OpenShift creates the cluster with the bootstrap.ign file*
-7: Wait until the cluster is created - ClusterOperators all have a status of `Available` and API available
-8: OpenShift deletes the bootstrap infra with `terraform destroy`
-
+1: OpenShift Creates the Cluster AWS Resources with Terraform  
+2: OpenShift Creates an AWS Load Balancer and Record for the OpenShift API. OpenShift Creates master nodes (tested on singe node openshift)  
+3: OpenShift Creates the Bootstrap AWS Resources with Terraform  
+4: OpenShift creates bootstrap EC2 instance and S3 Bucket to connect to and configure the cluster  
+5: OpenShift adds the bootstrap.ign ignition file to the S3 Bucket  
+6: OpenShift creates the cluster with the bootstrap.ign file*  
+7: Wait until the cluster is created - ClusterOperators all have a status of `Available` and API available  
+8: OpenShift deletes the bootstrap infra with `terraform destroy`  
+ 
 The OpenShift `bootstrap.ign` file contains the _magic_ that actually creates the cluster.  
 The bootstrap.ign file contains json with base64 encoded data for the cluster to use.  
 This includes scripts such as bootkube.sh and the manifests for the cluster.  
