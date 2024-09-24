@@ -16,7 +16,7 @@ However this approach may not be suitable for all environments e.g. where specif
 ### Supported Cloud Credentials Modes for AWS
 
 OpenShift supports the following `CredentialsModes` for IPI installations on AWS:
-Manual, Mint, and Auto.
+Manual, Mint, and Passthrough.
 
 #### Mint Mode (Default)
 
