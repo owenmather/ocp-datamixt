@@ -1,0 +1,54 @@
+additionalTrustBundlePolicy: Proxyonly
+apiVersion: v1
+baseDomain: {{baseDomain}}
+credentialsMode: {{credentialsMode}}
+compute:
+  - architecture: amd64
+    hyperthreading: Enabled
+    name: worker
+    platform:
+      aws:
+        type: t3a.xlarge
+        zones:
+          - eu-west-1a
+        metadataService:
+          authentication: Required
+    replicas: 0
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  platform:
+    aws:
+      type: t3a.xlarge
+      zones:
+        - eu-west-1a
+      metadataService:
+        authentication: Required
+  replicas: 1
+metadata:
+  creationTimestamp: null
+  name: hub
+networking:
+  clusterNetwork:
+    - cidr: 10.128.0.0/14
+      hostPrefix: 23
+  machineNetwork:
+    - cidr: 10.0.2.0/24
+  networkType: OVNKubernetes
+  serviceNetwork:
+    - 172.30.0.0/16
+platform:
+  aws:
+    region: eu-west-1
+    subnets:
+      - subnet-03b6ed93b4303797c
+    propagateUserTags: true
+    userTags:
+      provisionedBy: Owen
+      Environment: hub
+    hostedZone: {{ hostedZone }}
+publish: Internal
+pullSecret: '{{pullSecret.stdout}}'
+sshKey: |
+  {{ openshift_ssh_pub_key }}
